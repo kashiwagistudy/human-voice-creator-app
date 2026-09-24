@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>人力ボイス ― 自分の声で話す ―</title>
+<style>
+  :root {
+    /* ===== デザイントークン：和紙・藍染め・朱印をモチーフにした配色 ===== */
+    --paper: #EFEBE2;
+    --paper-raised: #FAF8F2;
+    --paper-line: #DCD5C6;
+    --ink: #2B2620;
+    --ink-soft: #6B6259;
+    --indigo: #1F3A5F;
+    --indigo-deep: #142A45;
+    --indigo-tint: #E4E9EE;
+    --shu: #C0392B;
+    --shu-tint: #F6E1DD;
+    --moss: #4C7A5E;
+    --moss-tint: #E4EFE9;
+    --ochre: #A8752A;
+    --ochre-tint: #F4E8D3;
+    --crimson: #8C2F2F;
+    --crimson-tint: #F2E0DD;
+    --radius: 14px;
+    --font-display: "Shippori Mincho", "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
+    --font-body: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    background-image:
+      radial-gradient(circle at 20% 10%, rgba(31,58,95,0.04), transparent 45%),
+      radial-gradient(circle at 85% 30%, rgba(192,57,43,0.03), transparent 40%);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app-shell { max-width: 640px; margin: 0 auto; padding: 32px 20px 120px; }
+
+  .app-header { text-align: center; margin-bottom: 28px; }
+  .app-header .eyebrow {
+    font-family: var(--font-display);
+    letter-spacing: 0.35em;
+    font-size: 12px;
+    color: var(--shu);
+    margin: 0 0 6px;
+  }
+  .app-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(24px, 6vw, 32px);
+    font-weight: 600;
+    margin: 0 0 8px;
+    color: var(--indigo-deep);
+  }
+  .app-header .lede {
+    margin: 0 auto;
+    max-width: 46ch;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+
+  .container { display: flex; flex-direction: column; gap: 16px; }
+
+  .card {
+    background: var(--paper-raised);
+    border: 1px solid var(--paper-line);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 1px 2px rgba(43,38,32,0.04);
+  }
+
+  details.card { padding: 0; overflow: hidden; }
+  details.card > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 16px 20px;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--indigo-deep);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  details.card > summary::-webkit-details-marker { display: none; }
+  details.card > summary::after {
+    content: "▾";
+    color: var(--ink-soft);
+    transition: transform 0.2s ease;
+  }
+  details.card[open] > summary::after { transform: rotate(-180deg); }
+  details.card > summary:focus-visible { outline: 2px solid var(--indigo); outline-offset: -2px; }
+  details.card .recording-area,
+  details.card .settings-area { padding: 4px 20px 20px; border-top: 1px solid var(--paper-line); }
+
+  /* ===== 発話カード ===== */
+  .display-area {
+    background: var(--indigo-tint);
+    border: 1px dashed var(--indigo);
+    border-radius: 10px;
+    padding: 18px 16px;
+    min-height: 28px;
+    font-size: 18px;
+    color: var(--indigo-deep);
+    margin-bottom: 14px;
+    word-break: break-word;
+  }
+  .text-input {
+    width: 100%;
+    font-size: 17px;
+    padding: 13px 14px;
+    border: 1px solid var(--paper-line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--ink);
+    margin-bottom: 12px;
+    font-family: inherit;
+  }
+  .text-input:focus-visible { outline: 2px solid var(--indigo); outline-offset: 1px; }
+
+  .main-button {
+    width: 100%;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: var(--font-body);
+    color: #fff;
+    background: var(--indigo);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.05s ease;
+  }
+  .main-button:hover:not(:disabled) { background: var(--indigo-deep); }
+  .main-button:active:not(:disabled) { transform: scale(0.99); }
+  .main-button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .main-button.playing {
+    background: var(--shu);
+    animation: pulse-soft 1.1s ease-in-out infinite;
+  }
+
+  .quick-phrases { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .phrase-button {
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 999px;
+    border: 1px solid var(--paper-line);
+    background: var(--paper);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .phrase-button:hover { border-color: var(--indigo); color: var(--indigo-deep); }
+
+  /* ===== 進捗カード ===== */
+  .progress-bar {
+    width: 100%;
+    height: 10px;
+    background: var(--indigo-tint);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--indigo), var(--shu));
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .progress-text { margin-top: 8px; font-size: 13px; color: var(--ink-soft); text-align: center; }
+
+  /* ===== 音声登録エリア ===== */
+  .char-selector-grid h3 {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--ink);
+    margin: 18px 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .char-selector-grid h3:first-child { margin-top: 6px; }
+  .group-badge {
+    font-family: var(--font-body);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .group-badge.seion { background: var(--indigo-tint); color: var(--indigo-deep); }
+  .group-badge.dakuten { background: var(--shu-tint); color: var(--shu); }
+  .group-badge.special { background: var(--moss-tint); color: var(--moss); }
+
+  .char-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .char-button {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    border: 1px solid var(--paper-line);
+    background: #fff;
+    color: var(--ink);
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .char-button:hover:not(:disabled) { border-color: var(--indigo); }
+  .char-button.selected {
+    background: var(--indigo);
+    border-color: var(--indigo);
+    color: #fff;
+  }
+  .char-button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .char-button .checkmark {
+    display: none;
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: var(--shu);
+    color: #fff;
+    font-size: 10px;
+    line-height: 17px;
+    text-align: center;
+    transform: rotate(-14deg);
+    box-shadow: 0 0 0 2px var(--paper-raised);
+  }
+  .char-button.recorded .checkmark { display: block; }
+
+  /* ===== 録音操作 ===== */
+  .record-controls { display: flex; justify-content: center; gap: 14px; margin: 18px 0 10px; }
+  .record-button {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 1px solid var(--paper-line);
+    background: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .record-button:hover:not(:disabled) { border-color: var(--indigo); }
+  .record-button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #record-btn.recording {
+    background: var(--crimson);
+    border-color: var(--crimson);
+    color: #fff;
+    animation: pulse-ring 1.2s ease-out infinite;
+  }
+  .record-hint {
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-soft);
+    min-height: 18px;
+  }
+
+  /* ===== 設定エリア ===== */
+  .setting-item { margin: 16px 0; }
+  .setting-item label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+  .setting-item input[type="range"] {
+    width: 100%;
+    accent-color: var(--indigo);
+  }
+  .data-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+  .data-buttons button,
+  .data-buttons .file-label {
+    flex: 1;
+    min-width: 130px;
+    text-align: center;
+    padding: 11px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--indigo);
+    background: var(--indigo-tint);
+    color: var(--indigo-deep);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .data-buttons button:hover,
+  .data-buttons .file-label:hover { background: var(--indigo); color: #fff; }
+  #import-file { position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; }
+  .danger-button {
+    width: 100%;
+    padding: 11px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--crimson);
+    background: var(--crimson-tint);
+    color: var(--crimson);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .danger-button:hover { background: var(--crimson); color: #fff; }
+
+  /* ===== ステータス表示 ===== */
+  .status-display {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    max-width: calc(100% - 32px);
+    background: var(--indigo-deep);
+    color: #fff;
+    padding: 11px 18px;
+    border-radius: 999px;
+    font-size: 13px;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(20,42,69,0.25);
+    z-index: 10;
+  }
+  .status-display:empty { display: none; }
+  .status-display.success { background: var(--moss); }
+  .status-display.warning { background: var(--ochre); }
+  .status-display.error { background: var(--crimson); }
+
+  button:focus-visible,
+  .char-button:focus-visible,
+  .phrase-button:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(140,47,47,0.45); }
+    100% { box-shadow: 0 0 0 12px rgba(140,47,47,0); }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #record-btn.recording, .main-button.playing { animation: none; }
+  }
+
+  @media (max-width: 420px) {
+    .char-button { width: 38px; height: 38px; font-size: 15px; }
+    .record-button { width: 52px; height: 52px; }
+  }
+</style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <p class="eyebrow">JINRIKI VOICE</p>
+      <h1>人力ボイス</h1>
+      <p class="lede">ひらがな一音ずつ、あなた自身の声を録音しておくと、入力した文章をその声で読み上げます。</p>
+    </header>
+
+    <main class="container">
+      <section class="card speak-card">
+        <div id="display-area" class="display-area" aria-live="polite">入力内容をここに表示</div>
+        <input type="text" id="input-box" class="text-input" placeholder="ひらがなで入力（濁点・半濁点対応）" aria-label="テキスト入力ボックス">
+        <button id="speak-btn" class="main-button">この内容で話す</button>
+        <div class="quick-phrases" id="quick-phrases" aria-label="よく使う言葉"></div>
+      </section>
+
+      <section class="card progress-card">
+        <div class="progress-bar" aria-label="録音進捗">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-text" id="progress-text">音声データの登録を開始してください</div>
+      </section>
+
+      <details class="card">
+        <summary>音声の登録</summary>
+        <div class="recording-area">
+          <div class="char-selector-grid" id="char-selector-grid"></div>
+          <div class="record-controls">
+            <button id="record-btn" class="record-button" title="録音開始" aria-label="録音開始">🎤</button>
+            <button id="play-btn" class="record-button" title="試聴" aria-label="試聴">▶</button>
+            <button id="delete-btn" class="record-button" title="この録音を削除" aria-label="この録音を削除">🗑</button>
+          </div>
+          <div class="record-hint" id="record-hint">音を選ぶと、ここに録音の案内が表示されます。</div>
+        </div>
+      </details>
+
+      <details class="card">
+        <summary>設定</summary>
+        <div class="settings-area">
+          <div class="setting-item">
+            <label for="speed-slider">話す速さ: <span id="speed-value">1.0</span>倍</label>
+            <input type="range" id="speed-slider" min="0.5" max="2" step="0.1" value="1">
+          </div>
+          <div class="setting-item">
+            <label for="volume-slider">音量: <span id="volume-value">100</span>%</label>
+            <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="1">
+          </div>
+          <div class="setting-item">
+            <label for="pause-slider">音素間の間隔: <span id="pause-value">100</span>ms</label>
+            <input type="range" id="pause-slider" min="0" max="300" step="10" value="100">
+          </div>
+          <div class="setting-item data-buttons">
+            <button id="export-btn">データを保存</button>
+            <label for="import-file" class="file-label">データを読込</label>
+            <input type="file" id="import-file" accept=".json" aria-label="データ読み込みファイル選択">
+          </div>
+          <div class="setting-item">
+            <button id="reset-btn" class="danger-button">すべての録音データを削除</button>
+          </div>
+        </div>
+      </details>
+    </main>
+
+    <div id="status-display" class="status-display" role="status" aria-live="polite">アプリへようこそ！</div>
+  </div>
+
+  <script>
+    // ==================================================================
+    // 高度なIndexedDB管理クラス
+    // ==================================================================
+    class AdvancedIndexedDB {
+        constructor(dbName, version = 1) {
+            this.dbName = dbName;
+            this.version = version;
+            this.db = null;
+        }
+
+        async init() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(this.dbName, this.version);
+
+                request.onerror = () => reject(new Error(`データベースの初期化に失敗しました: ${request.error?.message || '不明なエラー'}`));
+                request.onsuccess = () => {
+                    this.db = request.result;
+                    this.db.onerror = (event) => console.error('Database error:', event);
+                    resolve(this.db);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('voices')) {
+                        db.createObjectStore('voices', { keyPath: 'char' });
+                    }
+                };
+            });
+        }
+
+        async put(data) {
+            if (!this.db) throw new Error('Database not initialized');
+            if (!data.char || !data.blob) throw new Error('Invalid data format');
+
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['voices'], 'readwrite');
+                const store = transaction.objectStore('voices');
+                const request = store.put(data);
+
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async get(key) {
+            if (!this.db) throw new Error('Database not initialized');
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['voices'], 'readonly');
+                const store = transaction.objectStore('voices');
+                const request = store.get(key);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async delete(key) {
+            if (!this.db) throw new Error('Database not initialized');
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['voices'], 'readwrite');
+                const store = transaction.objectStore('voices');
+                const request = store.delete(key);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async clear() {
+            if (!this.db) throw new Error('Database not initialized');
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['voices'], 'readwrite');
+                const store = transaction.objectStore('voices');
+                const request = store.clear();
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async getAllKeys() {
+            if (!this.db) throw new Error('Database not initialized');
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['voices'], 'readonly');
+                const store = transaction.objectStore('voices');
+                const request = store.getAllKeys();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async getAll() {
+            if (!this.db) throw new Error('Database not initialized');
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['voices'], 'readonly');
+                const store = transaction.objectStore('voices');
+                const request = store.getAll();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async bulkAdd(dataArray) {
+            if (!this.db) throw new Error('Database not initialized');
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction(['voices'], 'readwrite');
+                const store = transaction.objectStore('voices');
+                dataArray.forEach(data => store.put(data));
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+        }
+    }
+
+    // ==================================================================
+    // 日本語音韻学に基づく完全な音素システム
+    // ==================================================================
+    const HIRAGANA_MAP = {
+        '清音': {
+            'あ行': ['あ', 'い', 'う', 'え', 'お'],
+            'か行': ['か', 'き', 'く', 'け', 'こ'],
+            'さ行': ['さ', 'し', 'す', 'せ', 'そ'],
+            'た行': ['た', 'ち', 'つ', 'て', 'と'],
+            'な行': ['な', 'に', 'ぬ', 'ね', 'の'],
+            'は行': ['は', 'ひ', 'ふ', 'へ', 'ほ'],
+            'ま行': ['ま', 'み', 'む', 'め', 'も'],
+            'や行': ['や', 'ゆ', 'よ'],
+            'ら行': ['ら', 'り', 'る', 'れ', 'ろ'],
+            'わ行': ['わ', 'を', 'ん']
+        },
+        '濁音・半濁音': {
+            'が行': ['が', 'ぎ', 'ぐ', 'げ', 'ご'],
+            'ざ行': ['ざ', 'じ', 'ず', 'ぜ', 'ぞ'],
+            'だ行': ['だ', 'ぢ', 'づ', 'で', 'ど'],
+            'ば行': ['ば', 'び', 'ぶ', 'べ', 'ぼ'],
+            'ぱ行': ['ぱ', 'ぴ', 'ぷ', 'ぺ', 'ぽ']
+        },
+        '特殊音': {
+            '小文字': ['ぁ', 'ぃ', 'ぅ', 'ぇ', 'ぉ', 'っ', 'ゃ', 'ゅ', 'ょ']
+        }
+    };
+
+    const TARGET_CHARS = Object.values(HIRAGANA_MAP).map(group => Object.values(group)).flat(2);
+    const QUICK_PHRASES = ['ありがとう', 'こんにちは', 'さようなら', 'はい', 'いいえ', 'すみません', 'おはよう', 'こんばんは', 'おつかれさま'];
+
+    // ==================================================================
+    // アプリケーション状態管理
+    // ==================================================================
+    let currentTargetChar = null;
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let audioContext = null;
+    let gainNode = null;
+    let isRecording = false;
+    let isPlaying = false;
+    let pauseDuration = 100;
+    let recordTimeoutId = null;
+
+    const db = new AdvancedIndexedDB("JinrikiVoiceDB_v3");
+
+    const elements = {
+        charSelectorGrid: document.getElementById('char-selector-grid'),
+        quickPhrasesContainer: document.getElementById('quick-phrases'),
+        recordBtn: document.getElementById('record-btn'),
+        playBtn: document.getElementById('play-btn'),
+        deleteBtn: document.getElementById('delete-btn'),
+        recordHint: document.getElementById('record-hint'),
+        speakBtn: document.getElementById('speak-btn'),
+        inputBox: document.getElementById('input-box'),
+        displayArea: document.getElementById('display-area'),
+        statusDisplay: document.getElementById('status-display'),
+        progressFill: document.getElementById('progress-fill'),
+        progressText: document.getElementById('progress-text'),
+        speedSlider: document.getElementById('speed-slider'),
+        speedValue: document.getElementById('speed-value'),
+        volumeSlider: document.getElementById('volume-slider'),
+        volumeValue: document.getElementById('volume-value'),
+        pauseSlider: document.getElementById('pause-slider'),
+        pauseValue: document.getElementById('pause-value'),
+        exportBtn: document.getElementById('export-btn'),
+        importFile: document.getElementById('import-file'),
+        resetBtn: document.getElementById('reset-btn')
+    };
+
+    // ==================================================================
+    // アプリケーション初期化
+    // ==================================================================
+    window.onload = async () => {
+        try {
+            showStatus('アプリを初期化中...', 'warning');
+            await db.init();
+            await initializeAudioContext();
+            setupUI();
+            setupEventListeners();
+            await updateRecordedStatus();
+            updateRecordHint();
+            showStatus('アプリが正常に初期化されました。', 'success');
+        } catch (error) {
+            console.error('初期化エラー:', error);
+            showStatus(`初期化に失敗しました: ${error.message}`, 'error');
+        }
+    };
+
+    async function initializeAudioContext() {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) throw new Error('Web Audio APIがサポートされていません');
+
+            audioContext = new AudioContextClass();
+            gainNode = audioContext.createGain();
+            gainNode.connect(audioContext.destination);
+
+            const resumeAudioContext = async () => {
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+            };
+            ['click', 'touch', 'keydown'].forEach(eventType => {
+                document.addEventListener(eventType, resumeAudioContext, { once: true });
+            });
+        } catch (error) {
+            throw new Error('音声機能の初期化に失敗しました');
+        }
+    }
+
+    function getSupportedMimeType() {
+        if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+        const candidates = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/mp4',
+            'audio/mp4;codecs=mp4a.40.2',
+            'audio/ogg;codecs=opus'
+        ];
+        return candidates.find(type => MediaRecorder.isTypeSupported(type)) || '';
+    }
+
+    // ==================================================================
+    // UI構築 & イベントリスナー
+    // ==================================================================
+    function setupUI() {
+        for (const [groupName, group] of Object.entries(HIRAGANA_MAP)) {
+            const groupTitle = document.createElement('h3');
+            groupTitle.innerHTML = `${groupName} <span class="group-badge ${getGroupClass(groupName)}">${Object.values(group).flat().length}音</span>`;
+            elements.charSelectorGrid.appendChild(groupTitle);
+
+            for (const [rowName, chars] of Object.entries(group)) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'char-row';
+                chars.forEach(char => {
+                    const button = createCharButton(char);
+                    rowDiv.appendChild(button);
+                });
+                elements.charSelectorGrid.appendChild(rowDiv);
+            }
+        }
+
+        QUICK_PHRASES.forEach(phrase => {
+            const button = document.createElement('button');
+            button.className = 'phrase-button';
+            button.textContent = phrase;
+            button.onclick = () => playPhrase(phrase);
+            elements.quickPhrasesContainer.appendChild(button);
+        });
+    }
+
+    function createCharButton(char) {
+        const button = document.createElement('button');
+        button.className = 'char-button';
+        button.textContent = char;
+        button.dataset.char = char;
+        button.setAttribute('aria-label', `音素「${char}」`);
+        button.innerHTML += '<div class="checkmark">✓</div>';
+        button.onclick = () => selectChar(char);
+        return button;
+    }
+
+    function getGroupClass(groupName) {
+        if (groupName.includes('清音')) return 'seion';
+        if (groupName.includes('濁音')) return 'dakuten';
+        if (groupName.includes('特殊')) return 'special';
+        return '';
+    }
+
+    function setupEventListeners() {
+        elements.inputBox.addEventListener('input', () => {
+            elements.displayArea.textContent = elements.inputBox.value || '入力内容をここに表示';
+        });
+        elements.inputBox.addEventListener('paste', handleTextPaste);
+        elements.recordBtn.onclick = handleRecord;
+        elements.playBtn.onclick = handlePlay;
+        elements.deleteBtn.onclick = handleDelete;
+        elements.speakBtn.onclick = handleSpeak;
+        elements.speedSlider.oninput = () => { elements.speedValue.textContent = parseFloat(elements.speedSlider.value).toFixed(1); };
+        elements.volumeSlider.oninput = () => {
+            const vol = parseFloat(elements.volumeSlider.value);
+            elements.volumeValue.textContent = Math.round(vol * 100);
+            if (gainNode) gainNode.gain.value = vol;
+        };
+        elements.pauseSlider.oninput = () => {
+            pauseDuration = parseInt(elements.pauseSlider.value);
+            elements.pauseValue.textContent = pauseDuration;
+        };
+        elements.exportBtn.onclick = exportData;
+        elements.importFile.onchange = importData;
+        elements.resetBtn.onclick = resetAllData;
+    }
+
+    // 貼り付け時、対応していない文字（漢字・英数字等）が含まれていないか早めに知らせる。
+    // 入力中（IME変換の途中経過）は誤検知しやすいため、あえて貼り付け時のみ実施する。
+    function handleTextPaste() {
+        setTimeout(() => {
+            const text = elements.inputBox.value;
+            const invalidChars = [...new Set(
+                Array.from(text).filter(char => !TARGET_CHARS.includes(char) && char !== '゛' && char !== '゜')
+            )];
+            if (invalidChars.length > 0) {
+                showStatus(`対応していない文字が含まれています: ${invalidChars.join(' ')}`, 'warning', 4000);
+            }
+        }, 10);
+    }
+
+    // ==================================================================
+    // UI制御とフィードバック
+    // ==================================================================
+    function showStatus(message, type = 'normal', duration = 3000) {
+        elements.statusDisplay.textContent = message;
+        elements.statusDisplay.className = 'status-display';
+        if (type === 'success') elements.statusDisplay.classList.add('success');
+        else if (type === 'error') elements.statusDisplay.classList.add('error');
+        else if (type === 'warning') elements.statusDisplay.classList.add('warning');
+
+        if (type !== 'error' && duration > 0) {
+            setTimeout(() => {
+                if (elements.statusDisplay.textContent === message) {
+                    elements.statusDisplay.textContent = '';
+                    elements.statusDisplay.className = 'status-display';
+                }
+            }, duration);
+        }
+    }
+
+    function selectChar(char) {
+        if (isRecording || isPlaying) return;
+        currentTargetChar = char;
+        document.querySelectorAll('.char-button').forEach(btn => {
+            btn.classList.remove('selected');
+            btn.setAttribute('aria-selected', 'false');
+        });
+        const selectedBtn = document.querySelector(`.char-button[data-char="${char}"]`);
+        selectedBtn.classList.add('selected');
+        selectedBtn.setAttribute('aria-selected', 'true');
+        updateRecordHint();
+    }
+
+    async function updateRecordHint() {
+        if (!currentTargetChar) {
+            elements.recordHint.textContent = '音を選ぶと、ここに録音の案内が表示されます。';
+            return;
+        }
+        try {
+            const record = await db.get(currentTargetChar);
+            elements.recordHint.textContent = record
+                ? `「${currentTargetChar}」は録音済みです。🎤で録り直し、▶で確認、🗑で削除できます。`
+                : `「${currentTargetChar}」は未録音です。🎤ボタンを押して発声してください（最大3秒。もう一度押すと途中で停止します）。`;
+        } catch (e) {
+            elements.recordHint.textContent = `「${currentTargetChar}」を選択中。`;
+        }
+    }
+
+    async function updateRecordedStatus() {
+        try {
+            const recordedChars = await db.getAllKeys();
+            document.querySelectorAll('.char-button').forEach(btn => {
+                const isRecorded = recordedChars.includes(btn.dataset.char);
+                btn.classList.toggle('recorded', isRecorded);
+                btn.setAttribute('aria-label', `音素「${btn.dataset.char}」${isRecorded ? '（録音済み）' : '（未録音）'}`);
+            });
+            const recordedCount = recordedChars.filter(char => TARGET_CHARS.includes(char)).length;
+            const progressPercent = (recordedCount / TARGET_CHARS.length) * 100;
+            elements.progressFill.style.width = `${progressPercent}%`;
+            elements.progressText.textContent = `${recordedCount}/${TARGET_CHARS.length}個 (${Math.round(progressPercent)}%) 登録済み`;
+        } catch (error) {
+            showStatus('状態更新に失敗しました。', 'error');
+        }
+    }
+
+    // disabled: 一括で操作不可にするかどうか。録音中は録音ボタンだけ有効のままにして、
+    // もう一度押すと停止できるようにする。
+    function toggleUI(disabled) {
+        [elements.recordBtn, elements.playBtn, elements.deleteBtn, elements.speakBtn, elements.exportBtn].forEach(btn => {
+            if (btn === elements.recordBtn && isRecording) return;
+            btn.disabled = disabled;
+            btn.setAttribute('aria-disabled', disabled.toString());
+        });
+        elements.importFile.disabled = disabled;
+        elements.resetBtn.disabled = disabled;
+    }
+
+    // ==================================================================
+    // 音韻解析システム
+    // ==================================================================
+    function parseTextToMorae(text) {
+        const morae = [];
+        // Unicode正規化：結合濁点/半濁点（IME入力等）を「が」等の単一文字に統合する
+        text = text.normalize('NFC');
+
+        const dakuonMap = { 'か':'が', 'き':'ぎ', 'く':'ぐ', 'け':'げ', 'こ':'ご', 'さ':'ざ', 'し':'じ', 'す':'ず', 'せ':'ぜ', 'そ':'ぞ', 'た':'だ', 'ち':'ぢ', 'つ':'づ', 'て':'で', 'と':'ど', 'は':'ば', 'ひ':'び', 'ふ':'ぶ', 'へ':'べ', 'ほ':'ぼ' };
+        const handakuonMap = { 'は':'ぱ', 'ひ':'ぴ', 'ふ':'ぷ', 'へ':'ぺ', 'ほ':'ぽ' };
+        // 独立した濁点/半濁点記号（結合文字ではない全角記号）を入力手段として使う場合に対応
+        const dakuonMark = '゛';
+        const handakuonMark = '゜';
+
+        let i = 0;
+        while (i < text.length) {
+            let char = text[i];
+            let nextChar = text[i + 1];
+
+            // 拗音（きゃ等）は特別扱いしなくても、下のelse節で「き」→「ゃ」と
+            // 1文字ずつ順番に処理される（どちらも録音済みの単音として存在する）ため、
+            // 結果として録音済みの2音を続けて再生する形になる。
+            if (nextChar === dakuonMark && dakuonMap[char]) {
+                morae.push(dakuonMap[char]);
+                i += 2;
+            } else if (nextChar === handakuonMark && handakuonMap[char]) {
+                morae.push(handakuonMap[char]);
+                i += 2;
+            } else {
+                morae.push(char);
+                i += 1;
+            }
+        }
+        return morae;
+    }
+
+    // ==================================================================
+    // 音声録音・再生システム
+    // ==================================================================
+    async function handleRecord() {
+        // 録音中にもう一度押した場合は、そこで録音を止める
+        if (isRecording) {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                clearTimeout(recordTimeoutId);
+                mediaRecorder.stop();
+            }
+            return;
+        }
+
+        if (!currentTargetChar) {
+            showStatus('先に録音したい音を選んでください。', 'warning');
+            return;
+        }
+        if (!navigator.mediaDevices?.getUserMedia) {
+            showStatus('このブラウザではマイク録音がサポートされていません。', 'error');
+            return;
+        }
+
+        isRecording = true;
+        toggleUI(true);
+        elements.recordBtn.classList.add('recording');
+        elements.recordBtn.setAttribute('aria-label', '録音停止');
+        showStatus(`🔴 録音中... 「${currentTargetChar}」（もう一度押すと停止）`, 'warning', 0);
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+            const mimeType = getSupportedMimeType();
+            mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                if (audioBlob.size > 100) { // データサイズの簡易チェック
+                    try {
+                        await db.put({ char: currentTargetChar, blob: audioBlob });
+                        showStatus(`「${currentTargetChar}」の録音が完了！`, 'success');
+                        await updateRecordedStatus();
+                        updateRecordHint();
+                    } catch (e) {
+                        showStatus('録音データの保存に失敗しました。', 'error');
+                    }
+                } else {
+                    showStatus('録音データが小さすぎます。もう一度お試しください。', 'error');
+                }
+                stream.getTracks().forEach(track => track.stop());
+                elements.recordBtn.classList.remove('recording');
+                elements.recordBtn.setAttribute('aria-label', '録音開始');
+                isRecording = false;
+                toggleUI(false);
+            };
+            mediaRecorder.start();
+            recordTimeoutId = setTimeout(() => {
+                if (mediaRecorder.state === 'recording') mediaRecorder.stop();
+            }, 3000);
+        } catch (err) {
+            showStatus('マイクへのアクセスに失敗しました。', 'error');
+            elements.recordBtn.classList.remove('recording');
+            elements.recordBtn.setAttribute('aria-label', '録音開始');
+            isRecording = false;
+            toggleUI(false);
+        }
+    }
+
+    async function handlePlay() {
+        if (!currentTargetChar) {
+            showStatus('先に確認したい音を選んでください。', 'warning');
+            return;
+        }
+        const record = await db.get(currentTargetChar);
+        if (record) await playSequence([currentTargetChar]);
+        else showStatus(`「${currentTargetChar}」はまだ録音されていません。`, 'warning');
+    }
+
+    async function handleDelete() {
+        if (!currentTargetChar) {
+            showStatus('先に削除したい音を選んでください。', 'warning');
+            return;
+        }
+        const record = await db.get(currentTargetChar);
+        if (!record) {
+            showStatus(`「${currentTargetChar}」はまだ録音されていません。`, 'warning');
+            return;
+        }
+        if (!window.confirm(`「${currentTargetChar}」の録音を削除しますか？この操作は取り消せません。`)) return;
+        try {
+            await db.delete(currentTargetChar);
+            showStatus(`「${currentTargetChar}」の録音を削除しました。`, 'success');
+            await updateRecordedStatus();
+            updateRecordHint();
+        } catch (e) {
+            showStatus('削除に失敗しました。', 'error');
+        }
+    }
+
+    function playPhrase(phrase) {
+        elements.inputBox.value = phrase;
+        elements.displayArea.textContent = phrase;
+        handleSpeak();
+    }
+
+    async function handleSpeak() {
+        const text = elements.inputBox.value.trim();
+        if (!text) {
+            showStatus('テキストを入力してください。', 'warning');
+            return;
+        }
+
+        const morae = parseTextToMorae(text);
+        const missingChars = new Set();
+        for (const mora of morae) {
+            if (!TARGET_CHARS.includes(mora)) {
+                showStatus(`「${mora}」は対応していません。`, 'error');
+                return;
+            }
+            const record = await db.get(mora);
+            if (!record) missingChars.add(mora);
+        }
+
+        if (missingChars.size > 0) {
+            showStatus(`「${[...missingChars].join(', ')}」の音が未録音です。`, 'error');
+            return;
+        }
+        await playSequence(morae);
+    }
+
+    async function playSequence(morae, index = 0) {
+        if (index === 0) {
+            isPlaying = true;
+            toggleUI(true);
+            elements.speakBtn.classList.add('playing');
+        }
+
+        if (index >= morae.length || isRecording) {
+            isPlaying = false;
+            toggleUI(false);
+            elements.speakBtn.classList.remove('playing');
+            if (index >= morae.length) showStatus('再生が完了しました。', 'success');
+            return;
+        }
+
+        const mora = morae[index];
+        showStatus(`再生中... 「${mora}」 (${index + 1}/${morae.length})`, 'warning', 0);
+
+        if (mora === 'っ') {
+            // 「っ」は無音の詰まりなので、通常の音素間隔より少し長めに取ると自然に聞こえる
+            const pauseTime = (pauseDuration + 150) / parseFloat(elements.speedSlider.value);
+            setTimeout(() => playSequence(morae, index + 1), pauseTime);
+            return;
+        }
+
+        const record = await db.get(mora);
+        if (record && audioContext) {
+            try {
+                const arrayBuffer = await record.blob.arrayBuffer();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.playbackRate.value = parseFloat(elements.speedSlider.value);
+                source.connect(gainNode);
+                source.start();
+                source.onended = () => {
+                    const intervalTime = pauseDuration / parseFloat(elements.speedSlider.value);
+                    setTimeout(() => playSequence(morae, index + 1), intervalTime);
+                };
+            } catch (e) {
+                console.error('音声デコードエラー:', e);
+                playSequence(morae, index + 1);
+            }
+        } else {
+            playSequence(morae, index + 1);
+        }
+    }
+
+    // ==================================================================
+    // データ管理システム
+    // ==================================================================
+    async function exportData() {
+        try {
+            showStatus('データをエクスポート中...', 'warning');
+            const allVoices = await db.getAll();
+            if (allVoices.length === 0) {
+                showStatus('保存するデータがありません。', 'error');
+                return;
+            }
+
+            const blobToBase64 = blob => new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+
+            const exportableData = [];
+            for (const voice of allVoices) {
+                const base64 = await blobToBase64(voice.blob);
+                exportableData.push({ char: voice.char, base64: base64 });
+            }
+
+            const jsonString = JSON.stringify({ version: "3.0", data: exportableData }, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `jinriki-voice-backup-${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showStatus('データのエクスポートが完了しました。', 'success');
+        } catch (error) {
+            console.error(error);
+            showStatus('エクスポートに失敗しました。', 'error');
+        }
+    }
+
+    async function importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        showStatus('データをインポート中...', 'warning');
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const importedJson = JSON.parse(e.target.result);
+                const importedData = (importedJson.data && Array.isArray(importedJson.data)) ? importedJson.data : importedJson;
+                if (!Array.isArray(importedData)) throw new Error('データの形式が正しくありません');
+
+                const base64ToBlob = (base64) => fetch(base64).then(res => res.blob());
+
+                const voicesToImport = [];
+                for (const item of importedData) {
+                    if (item.char && item.base64 && TARGET_CHARS.includes(item.char)) {
+                        const blob = await base64ToBlob(item.base64);
+                        voicesToImport.push({ char: item.char, blob: blob });
+                    }
+                }
+
+                if (voicesToImport.length === 0) {
+                    throw new Error("有効なデータが見つかりません");
+                }
+
+                // 実際に上書きが発生する場合のみ、件数を示して確認する
+                const currentKeys = await db.getAllKeys();
+                const overwriteCount = voicesToImport.filter(v => currentKeys.includes(v.char)).length;
+                if (overwriteCount > 0) {
+                    const confirmed = window.confirm(`既存の録音データ（${overwriteCount}件）が上書きされます。続けますか？`);
+                    if (!confirmed) {
+                        showStatus('読み込みをキャンセルしました。');
+                        return;
+                    }
+                }
+
+                await db.bulkAdd(voicesToImport);
+                showStatus(`${voicesToImport.length}件のデータをインポートしました。`, 'success');
+                await updateRecordedStatus();
+                updateRecordHint();
+            } catch (err) {
+                console.error(err);
+                showStatus('ファイルの読み込みに失敗しました。', 'error');
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    async function resetAllData() {
+        if (!window.confirm('すべての録音データを削除します。この操作は取り消せません。よろしいですか？')) return;
+        try {
+            await db.clear();
+            currentTargetChar = null;
+            document.querySelectorAll('.char-button').forEach(btn => {
+                btn.classList.remove('selected');
+                btn.setAttribute('aria-selected', 'false');
+            });
+            await updateRecordedStatus();
+            updateRecordHint();
+            showStatus('すべての録音データを削除しました。', 'success');
+        } catch (e) {
+            showStatus('削除に失敗しました。', 'error');
+        }
+    }
+  </script>
+</body>
+</html>
